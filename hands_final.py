@@ -8,8 +8,10 @@ import mediapipe as mp
 
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
+
 class hand_detector:
     def __init__(self):
+        self.totalHands = 0
         self.moveX = 0
         self.moveY = 0
         self.moveZ = 0
@@ -20,6 +22,19 @@ class hand_detector:
         
     def calc_distance(p1, p2):
         return sqrt((p1[0]-p2[0])**2+(p1[1]-p2[1])**2)
+
+    def get_frame(self, frame):
+        self.image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        self.frameWidth = self.image.shape[1]
+        self.frameHeight = self.image.shape[0]
+        self.image = cv2.flip(self.image, 1)
+        self.image.flags.writeable = False
+        self.results = hands.process(self.image)
+        self.image.flags.writeable = True
+        self.image = cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR)
+    
+    def Start(self):
+        pass
 
 class capture:
     def __init__(self, makeoptimize=False):
@@ -106,61 +121,47 @@ if __name__ == "__main__":
 
     with mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
         while captured.cap.isOpened():
-
+            
             ret, frame = captured.cap.read()
+            hands_detection.get_frame(frame)
+            
 
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if  hands_detection.results.multi_handedness:
+                hands_detection.totalHands = len( hands_detection.results.multi_handedness)
+                if (hands_detection.totalHands == 2):
+                    if ( hands_detection.results.multi_handedness[0].classification[0].label ==  hands_detection.results.multi_handedness[1].classification[0].label):
+                        hands_detection.totalHands = 1
+        
 
-            frameWidth = image.shape[1]
-            frameHeight = image.shape[0]
-
-            image = cv2.flip(image, 1)
-
-            image.flags.writeable = False
-
-            results = hands.process(image)
-
-            image.flags.writeable = True
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            # pos = (0,0)
-            # cv2.rectangle(image, pos, (frameWidth, frameHeight),(0, 0, 0), -1)
-
-            totalHands = 0
-
-            if results.multi_handedness:
-                totalHands = len(results.multi_handedness)
-                if (totalHands == 2):
-                    if (results.multi_handedness[0].classification[0].label == results.multi_handedness[1].classification[0].label):
-                        totalHands = 1
-
-            if results.multi_hand_landmarks:
+            if  hands_detection.results.multi_hand_landmarks:
                 if hands_detection.initialpose:
                     hands_detection.initialpose = False
-                if (totalHands == 1):
-                    for num, hand in enumerate(results.multi_hand_landmarks):
-                        normalizedLandmark = results.multi_hand_landmarks[
+                    
+                if (hands_detection.totalHands == 1):
+                    for num, hand in enumerate( hands_detection.results.multi_hand_landmarks):
+                        normalizedLandmark =  hands_detection.results.multi_hand_landmarks[
                             0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
                         pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(
-                            normalizedLandmark.x, normalizedLandmark.y, frameWidth, frameHeight)
+                            normalizedLandmark.x, normalizedLandmark.y,  hands_detection.frameWidth,  hands_detection.frameHeight)
 
-                        indexTip = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+                        indexTip =  hands_detection.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
                         indexTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            indexTip.x, indexTip.y, frameWidth, frameHeight)
+                            indexTip.x, indexTip.y,  hands_detection.frameWidth,  hands_detection.frameHeight)
 
-                        thumbTip = results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
+                        thumbTip =  hands_detection.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
                         thumbTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            thumbTip.x, thumbTip.y, frameWidth, frameHeight)
+                            thumbTip.x, thumbTip.y,  hands_detection.frameWidth,  hands_detection.frameHeight)
 
                         if pixelCoordinatesLandmark and indexTipXY and thumbTipXY is not None:
                             indexXY = (indexTipXY[0], indexTipXY[1])
                             thumbXY = (thumbTipXY[0], thumbTipXY[1])
-                            cv2.circle(image, indexXY, 10, (255, 0, 0), 2)
-                            cv2.circle(image, thumbXY, 10, (255, 0, 0), 2)
+                            cv2.circle( hands_detection.image, indexXY, 10, (255, 0, 0), 2)
+                            cv2.circle( hands_detection.image, thumbXY, 10, (255, 0, 0), 2)
                             dist = hand_detector.calc_distance(indexXY, thumbXY)
                             if (dist < 50):
                                 netX = round((indexTipXY[0]+thumbTipXY[0])/2)
                                 netY = round((indexTipXY[1]+thumbTipXY[1])/2)
-                                cv2.circle(image, (netX, netY),10, (0, 255, 0), 2)
+                                cv2.circle( hands_detection.image, (netX, netY),10, (0, 255, 0), 2)
                                 deltaX = hands_detection.moveX - netX
                                 hands_detection.moveX = netX
                                 deltaY = hands_detection.moveY - netY
@@ -175,32 +176,32 @@ if __name__ == "__main__":
                                 hands_detection.moveX = 0
                                 hands_detection.moveY = 0
 
-                        mp_drawing.draw_landmarks(image, hand, mp_hands.HAND_CONNECTIONS,mp_drawing.DrawingSpec(
+                        mp_drawing.draw_landmarks( hands_detection.image, hand, mp_hands.HAND_CONNECTIONS,mp_drawing.DrawingSpec(
                         color=(121, 22, 76), thickness=2, circle_radius=4),mp_drawing.DrawingSpec(
                         color=(250, 44, 250), thickness=2, circle_radius=2))
 
-                elif (totalHands == 2):
+                elif (hands_detection.totalHands == 2):
 
                     handX = [0, 0]
                     handY = [0, 0]
                     isHands = [False, False]
 
-                    for num, hand in enumerate(results.multi_hand_landmarks):
+                    for num, hand in enumerate( hands_detection.results.multi_hand_landmarks):
 
-                        indexTip = results.multi_hand_landmarks[num].landmark[
+                        indexTip =  hands_detection.results.multi_hand_landmarks[num].landmark[
                             mp_hands.HandLandmark.INDEX_FINGER_TIP]
                         indexTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            indexTip.x, indexTip.y, frameWidth, frameHeight)
+                            indexTip.x, indexTip.y,  hands_detection.frameWidth,  hands_detection.frameHeight)
 
-                        thumbTip = results.multi_hand_landmarks[num].landmark[mp_hands.HandLandmark.THUMB_TIP]
+                        thumbTip =  hands_detection.results.multi_hand_landmarks[num].landmark[mp_hands.HandLandmark.THUMB_TIP]
                         thumbTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            thumbTip.x, thumbTip.y, frameWidth, frameHeight)
+                            thumbTip.x, thumbTip.y,  hands_detection.frameWidth,  hands_detection.frameHeight)
 
                         if indexTip and indexTipXY and thumbTipXY is not None:
                             indexXY = (indexTipXY[0], indexTipXY[1])
                             thumbXY = (thumbTipXY[0], thumbTipXY[1])
-                            cv2.circle(image, indexXY, 10, (255, 0, 0), 2)
-                            cv2.circle(image, thumbXY, 10, (255, 0, 0), 2)
+                            cv2.circle( hands_detection.image, indexXY, 10, (255, 0, 0), 2)
+                            cv2.circle( hands_detection.image, thumbXY, 10, (255, 0, 0), 2)
                             dist = hand_detector.calc_distance(indexXY, thumbXY)
                             if (dist < 50):
                                 netX = round((indexTipXY[0]+thumbTipXY[0])/2)
@@ -209,7 +210,7 @@ if __name__ == "__main__":
                                 handY[num] = netY
                                 isHands[num] = True
 
-                        mp_drawing.draw_landmarks(image, hand, mp_hands.HAND_CONNECTIONS,
+                        mp_drawing.draw_landmarks( hands_detection.image, hand, mp_hands.HAND_CONNECTIONS,
                         mp_drawing.DrawingSpec(
                         color=(121, 22, 76), thickness=2, circle_radius=4),
                         mp_drawing.DrawingSpec(
@@ -234,7 +235,7 @@ if __name__ == "__main__":
                                     hands_detection.absZ = 0.5
                                 hands_detection.moveZ = distpar
                                 print(hands_detection.absZ)
-                                cv2.circle(image, (netX, netY),10, (0, 0, 255), 2)
+                                cv2.circle( hands_detection.image, (netX, netY),10, (0, 0, 255), 2)
                                 viewer.vis_zoom(hands_detection.absZ)
 
                         elif (not isHands[0] and not isHands[1]):
@@ -247,7 +248,7 @@ if __name__ == "__main__":
                     viewer.vis_general_reset()
 
             if not makefullscreen:
-                cv2.imshow('Hand Tracking', image)
+                cv2.imshow('Hand Tracking',  hands_detection.image)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
