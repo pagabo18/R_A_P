@@ -58,6 +58,16 @@ class hand_detector:
                     if ( self.results.multi_handedness[0].classification[0].label ==  self.results.multi_handedness[1].classification[0].label):
                         self.totalHands = 1
     
+    def index(self):
+        indexTip =  self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+        indexTipXY = mp_drawing._normalized_to_pixel_coordinates(indexTip.x, indexTip.y,  self.frameWidth,  self.frameHeight)
+        return indexTipXY
+    
+    def thumb(self):
+        thumbTip =  self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
+        thumbTipXY = mp_drawing._normalized_to_pixel_coordinates( thumbTip.x, thumbTip.y,  self.frameWidth,  self.frameHeight)
+        return thumbTipXY
+    
     def multi_handedness(self,viewer):
         if  self.results.multi_hand_landmarks:
                 if self.initialpose:
@@ -67,13 +77,9 @@ class hand_detector:
                         normalizedLandmark =  self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
                         pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y,  self.frameWidth,  self.frameHeight)
 
-                        indexTip =  self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-                        indexTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            indexTip.x, indexTip.y,  self.frameWidth,  self.frameHeight)
+                        indexTipXY = self.index()
 
-                        thumbTip =  self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.THUMB_TIP]
-                        thumbTipXY = mp_drawing._normalized_to_pixel_coordinates(
-                            thumbTip.x, thumbTip.y,  self.frameWidth,  self.frameHeight)
+                        thumbTipXY = self.thumb()
 
                         if pixelCoordinatesLandmark and indexTipXY and thumbTipXY is not None:
                             indexXY = (indexTipXY[0], indexTipXY[1])
@@ -120,7 +126,7 @@ class hand_detector:
                         thumbTipXY = mp_drawing._normalized_to_pixel_coordinates(
                             thumbTip.x, thumbTip.y,  self.frameWidth,  self.frameHeight)
 
-                        if indexTip and indexTipXY and thumbTipXY is not None:
+                        if indexTipXY and thumbTipXY is not None:
                             indexXY = (indexTipXY[0], indexTipXY[1])
                             thumbXY = (thumbTipXY[0], thumbTipXY[1])
                             cv2.circle( self.image, indexXY, 10, (255, 0, 0), 2)
