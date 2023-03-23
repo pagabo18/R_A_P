@@ -7,7 +7,7 @@ import open3d as o3d
 import mediapipe as mp
 
 
-from Hands.hand_detector import hand_detector
+from Hands.hand_detector import  *
 from Capture.capture import *
 from Object.Object_viewer import *
 

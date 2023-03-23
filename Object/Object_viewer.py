@@ -5,7 +5,6 @@ import open3d as o3d
 
 from Patrones.singleton import *
 from Hands.hand_detector import *
-
 class ObjectViewer(metaclass=Singleton):
 
     def __init__(self, objectreadfile, makefullscreen=False, width=1366, height=768):
@@ -22,25 +21,22 @@ class ObjectViewer(metaclass=Singleton):
         self.vis.update_renderer()
         self.zoomcounter = 0
 
-    def vis_rotate_view(self, angle_x, angle_y):
-        self.vis.get_view_control().rotate(-angle_x*10, -angle_y*10, xo=0.0, yo=0.0)
-        self.vis.poll_events()
-        self.vis.update_renderer()
-
     def vis_zoom(self, absZ):
         self.vis.get_view_control().set_zoom(absZ)
         self.vis.poll_events()
         self.vis.update_renderer()
 
     def vis_rotate_reset(self):
-        self.vis_rotate_view(5, 0)
+        self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
 
     def vis_rotate(self, deltaX, deltaY):
-        self.vis_rotate_view(deltaX, deltaY)
+        self.vis.get_view_control().rotate(-deltaX*10, -deltaY*10, xo=0.0, yo=0.0)
+        self.vis.poll_events()
+        self.vis.update_renderer()
 
     def vis_general_reset(self):
-        self.vis_rotate_view(5, 0)
-        self.zoomcounter += 1
+        self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
+        self.zoomcounter = self.zoomcounter + 1
         if self.zoomcounter > 1000:
             self.zoomcounter = 0
         self.vis.poll_events()
@@ -48,7 +44,7 @@ class ObjectViewer(metaclass=Singleton):
 
     def run(self):
         while True:
-            self.vis_rotate_view(5, 0)
+            self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
             self.zoomcounter += 1
             if self.zoomcounter > 1000:
                 self.zoomcounter = 0
