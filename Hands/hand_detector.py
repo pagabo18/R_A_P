@@ -146,6 +146,7 @@ class hand_detector:
         if self.totalHands == 1:
             self.process_single_hand(viewer)
         elif self.totalHands == 2:
+            
             self.process_double_hands(viewer)
     
     def process_single_hand(self, viewer):
@@ -299,11 +300,13 @@ class hand_detector:
         viewer:
             Objeto de la clase ObjectViewer que contiene el objeto 3D.
         '''
+        
         handX = [0, 0]
         handY = [0, 0]
         isHands = [False, False]
 
         for num, hand in enumerate(self.results.multi_hand_landmarks):
+            
             self.indexTip, indexTipXY = self.get_landmark_xy(hand, self.mp_hands.HandLandmark.INDEX_FINGER_TIP)
             self.thumbTip, thumbTipXY = self.get_landmark_xy(hand, self.mp_hands.HandLandmark.THUMB_TIP)
 
@@ -320,11 +323,7 @@ class hand_detector:
                     handY[num] = netY
                     isHands[num] = True
 
-            self.mp_drawing.draw_landmarks(
-                self.image, hand, self.mp_hands.HAND_CONNECTIONS,
-                self.mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
-                self.mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2)
-            )
+            self.draw_hand_landmarks(hand)
 
         self.zoom_viewer(isHands, handX, handY, viewer)
 

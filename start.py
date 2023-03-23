@@ -31,7 +31,7 @@ class RunAR:
 
     def run(self):
         """
-        Método que ejecuta la detección y visualización de objetos en 3D
+        Método central que ejecuta el resto de las clases de detección de mano y Manipulación de objetos 3d
         """
         with self.hands_detection.mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
             while self.captured.cap.isOpened:

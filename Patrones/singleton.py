@@ -1,4 +1,4 @@
-
+#implementación creacional
 class Singleton(type):
     '''
     clase que crea una unica instancia de la clase
