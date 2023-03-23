@@ -6,9 +6,6 @@ from math import sqrt
 import open3d as o3d
 import mediapipe as mp
 
-
-
-
 class hand_detector:
     def __init__(self):
         self.totalHands = 0
@@ -176,84 +173,25 @@ class hand_detector:
                             print("Regresando a posición Inicial")
                             viewer.vis_general_reset()    
     
-#     class MultiHandeness(ABC):
-#     def __init__(self):
-#         self.totalHands = 0
-        
-#     @abstractmethod
-#     def same_hand_detected(self):
-#         pass
-        
-#     @abstractmethod
-#     def multi_handedness(self,viewer):
-#         pass
 
+# class capture:
+#     def __init__(self, makeoptimize=False):
+#         if makeoptimize:
+#             self.cap = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
+#         else:
+#             self.cap = cv2.VideoCapture(0)
+#         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+#         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 
-# class SingleHand(MultiHandeness):
-#     def __init__(self):
-#         super().__init__()
-    
-#     def same_hand_detected(self):
-#         if self.results.multi_handedness:
-#             self.totalHands = len(self.results.multi_handedness)
-#             if (self.totalHands == 2):
-#                 if (self.results.multi_handedness[0].classification[0].label == self.results.multi_handedness[1].classification[0].label):
-#                     self.totalHands = 1
-                    
-#     def multi_handedness(self, viewer):
-#         if self.results.multi_hand_landmarks:
-#             if self.initialpose:
-#                 self.initialpose = False   
-#             if (self.totalHands == 1):
-#                 for num, hand in enumerate(self.results.multi_hand_landmarks):
-#                     normalizedLandmark = self.results.multi_hand_landmarks[0].landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-#                     pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, self.frameWidth, self.frameHeight)
+class Singleton(type):
+    _instances = {}
 
-#                     indexTipXY = self.index()
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
 
-#                     thumbTipXY = self.thumb()
-
-#                     if pixelCoordinatesLandmark and indexTipXY and thumbTipXY is not None:
-#                         indexXY = (indexTipXY[0], indexTipXY[1])
-#                         thumbXY = (thumbTipXY[0], thumbTipXY[1])
-#                         cv2.circle(self.image, indexXY, 10, (255, 0, 0), 2)
-#                         cv2.circle(self.image, thumbXY, 10, (255, 0, 0), 2)
-#                         dist = hand_detector.calc_distance(indexXY, thumbXY)
-#                         if (dist < 50):
-#                             netX = round((indexTipXY[0]+thumbTipXY[0])/2)
-#                             netY = round((indexTipXY[1]+thumbTipXY[1])/2)
-#                             cv2.circle(self.image, (netX, netY),10, (0, 255, 0), 2)
-#                             deltaX = self.moveX - netX
-#                             self.moveX = netX
-#                             deltaY = self.moveY - netY
-#                             self.moveY = netY
-#                             if abs(deltaX) > 40 or abs(deltaY) > 40:
-#                                 print("Max reached: " + str(deltaX)+","+str(deltaY))
-#                             else:
-#                                 print(str(deltaX)+","+str(deltaY))
-#                                 viewer.vis_rotate(deltaX, deltaY)
-#                         else:
-#                             self.moveX = 0
-#                             self.moveY = 0
-
-#                     mp_drawing.draw_landmarks(self.image, hand, mp_hands.HAND_CONNECTIONS, mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4), mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
-
-    
-# class DoubleHands(MultiHandeness):
-#     def __init__(self):
-#         super().__init__()
-#         self.newZ = True
-        
-#     def same_hand_detected(self):
-#         if self.results.multi_handedness:
-#             self.totalHands = len(self.results.multi_handedness)
-#             if (self.totalHands == 2):
-#                 if (self.results.multi_handedness[0].classification[0].
-    
-    
-    
-    
-class capture:
+class Capture(metaclass=Singleton):
     def __init__(self, makeoptimize=False):
         if makeoptimize:
             self.cap = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
@@ -263,7 +201,7 @@ class capture:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
         
 
-class ObjectViewer:
+class ObjectViewer(metaclass=Singleton):
 
     def __init__(self, objectreadfile, makefullscreen=False, width=1366, height=768):
         self.mesh = o3d.io.read_triangle_mesh(objectreadfile)
@@ -335,16 +273,19 @@ if __name__ == "__main__":
         makeoptimize = True
     
     hands_detection = hand_detector()
-    captured = capture(makeoptimize=makeoptimize)
+    captured = Capture(makeoptimize=makeoptimize)
     viewer = ObjectViewer(objectreadfile, makefullscreen=makefullscreen)
 
+
     with hands_detection.mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
-        while captured.cap.isOpened():
+        while captured.cap.isOpened:
+            # metaclass=Singleton
             
             ret, frame = captured.cap.read()
             hands_detection.get_frame(frame)
             hands_detection.same_hand_detected()
             hands_detection.multi_handedness(viewer)
+
             
             viewer.make_fullscreen(makefullscreen)
             
