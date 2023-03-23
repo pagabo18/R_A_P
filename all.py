@@ -1,18 +1,29 @@
-import mediapipe as mp
+
 import cv2
+import mediapipe as mp
+import open3d as o3d
 from math import sqrt
 
-
-class hand_detector:
-    '''
-    Clase que genera las detecciones de manos
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
     
-    '''
+class Capture(metaclass=Singleton):
+    def __init__(self, makeoptimize=False):
+        if makeoptimize:
+            self.cap = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
+        else:
+            self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+    
+class hand_detector:
+
     def __init__(self):
-        '''
-        Constructor de la clase hand_detector. Inicializa las variables de seguimiento de mano.
-        
-        '''
+
         self.totalHands = 0
         self.moveX = 0
         self.moveY = 0
@@ -25,29 +36,10 @@ class hand_detector:
         self.mp_hands = mp.solutions.hands
 
     def calc_distance(p1, p2):
-        '''
-        Método estático que calcula la distancia euclidiana entre dos puntos p1 y p2.
-        
-        '''
         return sqrt((p1[0]-p2[0])**2+(p1[1]-p2[1])**2)
 
     def run_hand_tracking(self, captured, makefullscreen=False, viewer=None):
-        '''
-        Método que ejecuta el seguimiento de mano en un flujo de video.
-        
-        Parametros 
-        -----------
-        
-        captured:
-            Objeto de la clase Capture que contiene el flujo de video.
-        
-        makefullscreen: 
-            Booleano que indica si se ejecuta en modo fullscreen.
-        
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        
-        '''
+
         with self.mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
             while captured.cap.isOpened():
                 self.ret, self.frame = captured.cap.read()
@@ -62,19 +54,7 @@ class hand_detector:
                     break
 
     def get_frame(self, frame, hands):
-        '''
-        Método que procesa un solo cuadro de video para detectar y analizar la información de la mano
         
-        Parametros:
-        -----------
-        
-        frame:
-            Cuadro de video que se procesa.
-        
-        hands:
-            Objeto de la clase Hands que contiene la información de la mano.
-        
-        '''
         self.image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self.frameWidth = self.image.shape[1]
         self.frameHeight = self.image.shape[0]
@@ -85,30 +65,21 @@ class hand_detector:
         self.image = cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR)
 
     def index(self):
-        '''
-         Método que devuelve las coordenadas (x, y) del extremo del dedo índice de la mano detectada actualmente.
-        
-        '''
+
         indexTip = self.results.multi_hand_landmarks[0].landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
         indexTipXY = self.mp_drawing._normalized_to_pixel_coordinates(
             indexTip.x, indexTip.y,  self.frameWidth,  self.frameHeight)
         return indexTipXY
 
     def thumb(self):
-        '''
-        Método que devuelve las coordenadas (x, y) del extremo del dedo pulgar de la mano detectada actualmente.
-        
-        '''
+
         thumbTip = self.results.multi_hand_landmarks[0].landmark[self.mp_hands.HandLandmark.THUMB_TIP]
         thumbTipXY = self.mp_drawing._normalized_to_pixel_coordinates(
             thumbTip.x, thumbTip.y,  self.frameWidth,  self.frameHeight)
         return thumbTipXY
 
     def same_hand_detected(self):
-        '''
-        Método que comprueba si se ha detectado la misma mano en el cuadro de video actual.
-        
-        '''
+
         if self.results.multi_handedness:
             self.totalHands = len(self.results.multi_handedness)
             if (self.totalHands == 2):
@@ -116,14 +87,7 @@ class hand_detector:
                     self.totalHands = 1
 
     def multi_handedness(self, viewer):
-        '''
-        Método que procesa la información de la mano detectada en el cuadro de video actual.
-        Parametros:
-        -----------
-        
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        '''
+
         if not self.results.multi_hand_landmarks:
             return
         if self.initialpose:
@@ -131,27 +95,14 @@ class hand_detector:
         self.process_hand_data(viewer)
 
     def process_hand_data(self, viewer):
-        '''
-        Método que procesa los datos de las manos detectadas 
-        para realizar el seguimiento de movimiento de la mano. 
-        Si se detecta una mano, llama al método process_single_hand. 
-        Si se detectan dos manos, llama al método process_double_hands.
-        
-        Parametros:
-        -----------
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        
-        '''
+
         if self.totalHands == 1:
             self.process_single_hand(viewer)
         elif self.totalHands == 2:
             self.process_double_hands(viewer)
     
     def process_single_hand(self, viewer):
-        '''
-        Método que realiza el seguimiento de movimiento de una mano.
-        '''
+
         for num, hand in enumerate(self.results.multi_hand_landmarks):
             indexTipXY, thumbTipXY = self.get_finger_tips(hand)
 
@@ -171,14 +122,7 @@ class hand_detector:
             self.draw_hand_landmarks(hand)
 
     def get_finger_tips(self, hand):
-        '''
-        Método que devuelve las coordenadas (x, y) de la punta del índice y la punta del pulgar de una mano.
-        parametros:
-        -----------
-        hand:
-            Objeto de la clase HandLandmark que contiene la información de la mano.
-        
-        '''
+
         indexTip = self.mp_hands.HandLandmark.INDEX_FINGER_TIP
         indexTipNorm = hand.landmark[indexTip]
         indexTipPix = self.mp_drawing._normalized_to_pixel_coordinates(
@@ -192,38 +136,12 @@ class hand_detector:
         return indexTipPix, thumbTipPix
 
     def draw_finger_circles(self, indexTipXY, thumbTipXY):
-        '''
-        Método que dibuja un círculo en la punta del índice y la punta del pulgar de una mano.
-        
-        parametros
-        ----------
-        indexTipXY:
-            Tupla con las coordenadas (x, y) de la punta del índice.
-        thumbTipXY:
-            Tupla con las coordenadas (x, y) de la punta del pulgar.
-        
-        '''
+
         cv2.circle(self.image, indexTipXY, 10, (255, 0, 0), 2)
         cv2.circle(self.image, thumbTipXY, 10, (255, 0, 0), 2)
 
     def calculate_movement(self, indexTipXY, thumbTipXY):
-        '''
-        Método que calcula la cantidad de movimiento en las coordenadas (x, y) de la mano
-        en un solo cuadro de video en función de la posición actual de la punta del índice
-        y la punta del pulgar y su posición anterior. 
-        
-        Si se encuentra una cantidad suficiente de movimiento, 
-        actualiza los valores de desplazamiento moveX y moveY y los devuelve.
-        Si no se encuentra suficiente movimiento, devuelve 0 para ambos valores.
-        
-        parametros
-        ----------
-        indexTipXY:
-            Tupla con las coordenadas (x, y) de la punta del índice.
-        thumbTipXY:
-            Tupla con las coordenadas (x, y) de la punta del pulgar.
-            
-        '''
+
         netX = round((indexTipXY[0]+thumbTipXY[0])/2)
         netY = round((indexTipXY[1]+thumbTipXY[1])/2)
         deltaX = self.moveX - netX
@@ -233,20 +151,7 @@ class hand_detector:
         return deltaX, deltaY
 
     def handle_movement(self, viewer, deltaX, deltaY):
-        '''
-        Método que gestiona el movimiento de la mano en el objeto 3D.
-        Si la cantidad de movimiento es suficiente, llama al método vis_rotate
-        del objeto viewer para realizar el movimiento.
-            
-        parametros
-        ----------
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        deltaX:
-            Cantidad de movimiento en la coordenada x.
-        deltaY:
-            Cantidad de movimiento en la coordenada y.
-        '''
+
         if abs(deltaX) > 40 or abs(deltaY) > 40:
             print("Max reached: " + str(deltaX)+","+str(deltaY))
         else:
@@ -254,51 +159,25 @@ class hand_detector:
             viewer.vis_rotate(deltaX, deltaY)
 
     def reset_movement(self):
-        '''
-        Método que reinicia los valores de desplazamiento moveX y moveY.
-        '''
+
         self.moveX = 0
         self.moveY = 0
 
     def draw_hand_landmarks(self, hand):
-        '''
-        Método que dibuja los puntos de referencia de la mano.
-        parametros
-        ----------
-        hand:
-            Objeto de la clase HandLandmark que contiene la información de la mano.
-        '''
+
         self.mp_drawing.draw_landmarks(
             self.image, hand, self.mp_hands.HAND_CONNECTIONS,
             self.mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
             self.mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
 
     def get_landmark_xy(self, hand, landmark):
-        '''
-        Método que devuelve las coordenadas (x, y) de un punto de referencia de la mano.
-        parametros
-        ----------
-        hand:
-            Objeto de la clase HandLandmark que contiene la información de la mano.
-        landmark:
-            Punto de referencia de la mano.
-        '''
+ 
         landmarkX = int(hand.landmark[landmark].x * self.frameWidth)
         landmarkY = int(hand.landmark[landmark].y * self.frameHeight)
         return (landmark, (landmarkX, landmarkY))
 
     def process_double_hands(self, viewer):
-        '''
-        Método que procesa la información de dos manos. 
-        si detecta las dos manos pero no la distancia entre los pulgares no hace nada
-        si detecta las dos manos y la distancia entre los pulgares es suficiente,
-        crea un circulo en el centro y realiza un zoom en el objeto
-        
-        parametros
-        ----------
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        '''
+
         handX = [0, 0]
         handY = [0, 0]
         isHands = [False, False]
@@ -329,23 +208,6 @@ class hand_detector:
         self.zoom_viewer(isHands, handX, handY, viewer)
 
     def zoom_viewer(self, isHands, handX, handY, viewer):
-        '''
-        Método que realiza el zoom en el objeto 3D.
-        Si detecta las dos manos y la distancia entre los pulgares es suficiente,
-        realiza un zoom en el objeto.
-        si no, regresa a la posicion inicial.
-        
-        parametros
-        ----------
-        isHands:
-            Lista con los valores booleanos que indican si se ha detectado una mano.
-        handX:
-            Lista con las coordenadas x de las manos.
-        handY:
-            Lista con las coordenadas y de las manos.
-        viewer:
-            Objeto de la clase ObjectViewer que contiene el objeto 3D.
-        '''
         if (isHands[0] and isHands[1]):
             distpar = hand_detector.calc_distance((handX[0], handY[0]), (handX[1], handY[1]))
             if (self.newZ):
@@ -371,3 +233,86 @@ class hand_detector:
                 if self.initialpose == False:
                     self.initialpose = True
                     print("Regresando a posición Inicial")
+                    
+class ObjectViewer(metaclass=Singleton):
+    def __init__(self, objectreadfile, makefullscreen=False, width=1366, height=768):
+        self.mesh = o3d.io.read_triangle_mesh(objectreadfile)
+        self.mesh.compute_vertex_normals()
+        self.vis = o3d.visualization.Visualizer()
+        self.vis.create_window(width=width, height=height)
+        
+        if makefullscreen:
+            self.vis.set_full_screen(True)
+        self.vis.add_geometry(self.mesh)
+        self.vis.get_render_option().load_from_json("render_options.json")
+        self.vis.poll_events()
+        self.vis.update_renderer()
+        self.zoomcounter = 0
+
+    def vis_zoom(self, absZ):
+        self.vis.get_view_control().set_zoom(absZ)
+        self.vis.poll_events()
+        self.vis.update_renderer()
+
+    def vis_rotate_reset(self):
+        self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
+
+    def vis_rotate(self, deltaX, deltaY):
+        self.vis.get_view_control().rotate(-deltaX*10, -deltaY*10, xo=0.0, yo=0.0)
+        self.vis.poll_events()
+        self.vis.update_renderer()
+
+    def vis_general_reset(self):
+        self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
+        self.zoomcounter = self.zoomcounter + 1
+        if self.zoomcounter > 1000:
+            self.zoomcounter = 0
+        self.vis.poll_events()
+        self.vis.update_renderer()
+
+    def run(self):
+        while True:
+            self.vis.get_view_control().rotate(5, 0, xo=0.0, yo=0.0)
+            self.zoomcounter += 1
+            if self.zoomcounter > 1000:
+                self.zoomcounter = 0
+            self.vis.poll_events()
+            self.vis.update_renderer()
+            
+    def make_fullscreen(self,makefullscreen=False,hands_detection = None):
+        if not makefullscreen:
+                cv2.imshow('Hand Tracking', hands_detection.image)           
+    def close(self):
+        self.vis.destroy_window()
+
+
+class RunAR:
+    def __init__(self):
+        self.objectreadfile = input("Ingrese el nombre del archivo 3D: ")
+        self.isfullscreen = input("¿Ejecutar en Fullscreen? SI/NO: ")
+        self.isoptimized = input("¿Optimizar (solo en windows)? SI/NO: ")
+        self.makefullscreen = self.isfullscreen == "SI"
+        self.makeoptimize = self.isoptimized == "SI"
+        self.hands_detection = hand_detector()
+        self.captured = Capture(makeoptimize=self.makeoptimize)
+        self.viewer = ObjectViewer(self.objectreadfile, makefullscreen=self.makefullscreen)
+
+    def run(self):
+        with self.hands_detection.mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
+            while self.captured.cap.isOpened:
+                ret, frame = self.captured.cap.read()
+                self.hands_detection.get_frame(frame, hands)
+                self.hands_detection.same_hand_detected()
+                self.hands_detection.multi_handedness(self.viewer)
+                self.viewer.make_fullscreen(self.makefullscreen, self.hands_detection)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            
+        self.captured.cap.release()
+        cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+
+    inicio = RunAR()
+    inicio.run()

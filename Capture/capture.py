@@ -9,10 +9,6 @@ class Capture(metaclass=Singleton):
         
         Parámetros:
         makeoptimize (bool): Indica si se desea una optimización de captura. Por defecto es False.
-        
-        Returns:
-        None
-        
         '''
         if makeoptimize:
             self.cap = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
